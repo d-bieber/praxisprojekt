@@ -1,0 +1,141 @@
+<html>
+<head></head>
+<body>
+<h1>JavaScript Template Attack</h1>
+<div id="log" style="font-family: monospace;">
+    Running, please wait...
+</div>
+<canvas id="glCanvas" width="120" height="32"></canvas>
+<script type="text/javascript">
+
+
+function log(level, o) {
+            let col = "black";
+            switch(level) {
+                case LOG_DEBUG:
+                    col = "gray";
+                    break;
+                case LOG_INFO:
+                    col = "black";
+                    break;
+                case LOG_WARNING:
+                    col = "orange";
+                    break;
+                case LOG_ERROR:
+                    col = "red";
+                    break;
+                case LOG_RESULT:
+                    col = "blue";
+                    break;
+            }
+
+            logconsole += "<span style='color: " + col + ";'>[" + new Date().toLocaleTimeString() + "] " + o + "</span><br />\n";
+
+        }
+
+function listAllProperties(o) {
+            var result = [];
+            while(o !== null) {
+                result = result.concat(Reflect.ownKeys(o));
+                o = Object.getPrototypeOf(o);
+            }
+
+            return result;
+        }
+
+
+function scan(root, root_name, fp, depth) {
+    var rem_roots = [];
+    var scanned_roots = [];
+    var hashes = [];
+
+    var m_depth = 0;
+    do {
+        var len = 0;
+        var keys = listAllProperties(root);
+        for(var k in keys) {
+            try {
+                var p = keys[k];
+                len++;
+                var logged = false;
+
+                if(!(p in root)) continue;
+                try {
+                    var type = typeof(root[p]);
+                } catch(e) {
+                    continue;
+                }
+
+                if(type == "function" && root[p] != null && !Array.isArray(root[p])) {
+                    try {
+                        fp[root_name + "." + p] = root[p].toString();
+                        logged = true;
+                    } catch(ex) {
+                    }
+                }
+
+                if(type == "object") {
+                    var dup = scanned_roots.indexOf(root[p]) > -1;
+                    if(!dup && check_hashes) {
+                        h = hash(root[p]);
+                        if(hashes.indexOf(h) > -1) dup = true;
+                    }
+                    if(dup) {
+                        dups++;
+                        continue;
+                    }
+                    if(check_hashes) hashes.push(h);
+                    scanned_roots.push(root[p]);
+                }
+
+                if(type == "number" || type == "string" || type == "boolean") {
+                    logged = true;
+                    try {
+                        fp[root_name + "." + p] = root[p];
+                    } catch(e) {}
+                }
+
+
+                if((type == "object" && root[p] != null && root[p] !== undefined) || Array.isArray(root[p]) ) {
+                    if(depth < max_depth) {
+                        try {
+                            rem_roots.push({"elem": root[p], "name": root_name + "." + p, "depth": depth + 1});
+                            logged = true;
+                        } catch(ex) {}
+                    }
+                }
+            } catch(ex) {}
+        }
+        fp[root_name + "._length"] = len;
+        var next;
+        do {
+            next = rem_roots.pop();
+        } while(next === undefined && rem_roots.length > 0);
+        if(next === undefined) break;
+        root = next.elem;
+        root_name = next.name;
+        depth = next.depth;
+        if(depth > m_depth) m_depth = depth;
+    } while(rem_roots.length > 0);
+    if(m_depth == max_depth) log(LOG_WARNING, "Maximum depth reached, maybe aborted");
+}
+
+const max_depth = 10;
+
+let logconsole = '';
+
+let root_name = 'window';
+let root = eval(root_name);
+
+
+let fp = {};
+scan(root, root_name, fp, 0);
+
+console.log('Size: ' + Object.keys(fp).length);
+console.log(fp);
+
+
+
+</script>
+</body>
+</html>
