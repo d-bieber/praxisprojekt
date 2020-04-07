@@ -25,18 +25,19 @@ function countProperties(ident) {
 }
 
 function startServer() {
-    http.createServer(function(req, res) {
+    console.log('Server running. Listening on :8080');
+    http.createServer(function (req, res) {
         console.log(req.url);
 
 
         if (req.method == 'POST') {
             var body = '';
 
-            req.on('data', function(data) {
+            req.on('data', function (data) {
                 body += data;
             });
 
-            req.on('end', function() {
+            req.on('end', function () {
                 var parsed = qs.parse(body);
                 var ident = parsed.ident;
                 var log = JSON.parse(new Buffer(parsed.log.replace(/-/g, "="), 'base64').toString());
