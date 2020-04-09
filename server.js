@@ -40,7 +40,12 @@ function startServer() {
             req.on('end', function () {
                 var parsed = qs.parse(body);
                 var ident = parsed.ident;
-                var log = JSON.parse(new Buffer(parsed.log.replace(/-/g, "="), 'base64').toString());
+                try {
+                    var log = JSON.parse(new Buffer(parsed.log.replace(/-/g, "="), 'base64').toString());
+                } catch(e) {
+                    console.error(JSON.stringify(parsed) + ': ' + e.message.toString());
+                    return;
+                }
 
                 var fp;
                 if (!(ident in fps)) {
@@ -71,8 +76,8 @@ function startServer() {
         } else {
             if (req.url.indexOf("/stat") == 0) {
                 var params = req.url.substr(req.url.indexOf("/stat?") + 6).split("&");
-                var b1 = new Buffer(params[0].substr(params[0].indexOf("c1=") + 3).replace(/-/g, "="), "base64").toString();
-                var b2 = new Buffer(params[1].substr(params[1].indexOf("c2=") + 3).replace(/-/g, "="), "base64").toString();
+                var b1 = new Buffer.alloc(params[0].substr(params[0].indexOf("c1=") + 3).replace(/-/g, "="), "base64").toString();
+                var b2 = new Buffer.alloc(params[1].substr(params[1].indexOf("c2=") + 3).replace(/-/g, "="), "base64").toString();
                 console.log(b1 + " vs " + b2);
                 res.writeHead(200, {
                     'Content-Type': 'text/html'
