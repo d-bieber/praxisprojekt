@@ -108,3 +108,6 @@ dist
 
 #Don't sync data.json
 data.json
+
+#nodemon config
+nodemon.json
