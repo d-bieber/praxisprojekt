@@ -76,8 +76,8 @@ function startServer() {
         } else {
             if (req.url.indexOf("/stat") == 0) {
                 var params = req.url.substr(req.url.indexOf("/stat?") + 6).split("&");
-                var b1 = new Buffer.alloc(params[0].substr(params[0].indexOf("c1=") + 3).replace(/-/g, "="), "base64").toString();
-                var b2 = new Buffer.alloc(params[1].substr(params[1].indexOf("c2=") + 3).replace(/-/g, "="), "base64").toString();
+                var b1 = new Buffer(params[0].substr(params[0].indexOf("c1=") + 3).replace(/-/g, "="), "base64").toString();
+                var b2 = new Buffer(params[1].substr(params[1].indexOf("c2=") + 3).replace(/-/g, "="), "base64").toString();
                 console.log(b1 + " vs " + b2);
                 res.writeHead(200, {
                     'Content-Type': 'text/html'
@@ -100,7 +100,7 @@ function startServer() {
                 }
 
                 // cross-check property
-                res.write("<table cellspacing=2 cellpadding=2 border=1 style='border: 1px solid gray; border-collapse: collapse;'><tr><th>Property</th><th>" + b1 + "</th><th>" + b2 + "</th></tr>");
+                res.write("<table cellspacing=2 cellpadding=2 border=1 style='border: 1px solid gray; border-collapse: collapse;'><tr><th>Property</th><th><pre>" + b1 + "</pre></th><th><pre>" + b2 + "</pre></th></tr>");
 
                 count = 0;
                 for (var k in all_keys) {
@@ -122,10 +122,10 @@ function startServer() {
                         }
                     }
                     if (d.length > 1) {
-                        res.write("<tr><td>" + all_keys[k] + "</td>");
+                        res.write("<tr><td><pre>" + all_keys[k] + "</pre></td>");
 
                         for (var value in d) {
-                            res.write("<td>" + d[value] + "</td>");
+                            res.write("<td><pre>" + d[value] + "</pre></td>");
                         }
                         count++;
 
@@ -139,6 +139,17 @@ function startServer() {
                 res.end();
             } else if (req.url == "/record") {
                 var filePath = path.join(__dirname, 'jta.html');
+                var stat = fileSystem.statSync(filePath);
+
+                res.writeHead(200, {
+                    'Content-Type': 'text/html',
+                    'Content-Length': stat.size
+                });
+
+                var readStream = fileSystem.createReadStream(filePath);
+                readStream.pipe(res);
+            } else if (req.url == "/origrecord") {
+                var filePath = path.join(__dirname, 'origjta.html');
                 var stat = fileSystem.statSync(filePath);
 
                 res.writeHead(200, {
@@ -163,7 +174,8 @@ function startServer() {
                 });
 
                 res.write("<h1>JavaScript Templates</h1>");
-                res.write("<br/><input type='button' value='Record' onclick='document.location.href=\"/record\";'><br/>");
+                res.write("<br/><input type='button' value='Record with functions' onclick='document.location.href=\"/record\";'>");
+                res.write("<input type='button' value='Record without functions' onclick='document.location.href=\"/origrecord\";'><br/>");
                 res.write("<h2>Profiles</h2>");
                 res.write("<table cellspacing=2 cellpadding=2 border=1 style='border: 1px solid gray; border-collapse: collapse;'><tr><th>Browser Identifier</th><th>Properties</th><th>Action</th></tr>");
                 for (fp in fps) {
