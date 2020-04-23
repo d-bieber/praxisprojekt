@@ -116,8 +116,9 @@
             } catch(e) {
                 mString = e.message.toString();
 
-                if(mString.includes(' is not a function')) {//TODO: Könnte man eventuell über function [native code] lösen
-                    //TODO: Eventuell Variablen abrufen?
+
+
+                if(mString.includes(' is not a function')) {//TODO: #4
                     return false;
                 }
 
