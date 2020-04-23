@@ -15,8 +15,9 @@
 
         var dups = 0;
 
-        let successfulCount = 0;
         let skippedFunctions = 0;
+
+        var LOG_DEBUG = 1, LOG_INFO = 2, LOG_WARNING = 4, LOG_ERROR = 8, LOG_RESULT = 16;
 
         const exclude = [
             'window.history.back',
@@ -38,30 +39,70 @@
             //'window.focus',
             'window.console.profile',
             'window.console.profileEnd',
+            'window.console.clear',
             'window.document.open',
             //'window.document.close',
             //'window.document.clear',
             //'window.canvas.offsetParent.remove',
+            'window.canvas.replaceWith',
+            'window.canvas.remove',
+            'window.canvas.previousElementSibling.replaceWith',
+            'window.canvas.previousElementSibling.remove',
+            'window.canvas.offsetParent.replaceWith',
+            'window.canvas.offsetParent.remove',
+            'window.canvas.offsetParent.parentNode.replaceWith',
+            'window.canvas.offsetParent.parentNode.remove',
             'window.navigator.storage.persist',//Storage Permission//TODO?
             'window.navigator.mediaDevices.getDisplayMedia',//Screen Share Permission
             'window.navigator.sendBeacon',
             'window.document.write',//White page
-            'window.document.writeln'//White page
+            'window.document.writeln',//White page
+            'window.document.body.replaceWith',
+            'window.document.body.remove',
+            'window.document.documentElement.replaceWith',
+            'window.document.documentElement.remove'//White page
         ];
-
-        var LOG_DEBUG = 1, LOG_INFO = 2, LOG_WARNING = 4, LOG_ERROR = 8, LOG_RESULT = 16;
 
         function hash(o) {
             return JSON.stringify(o);
         }
 
         function skipFunc(funcName) {
+            if(funcName.match(/^window\.canvas\..*(replaceWith|remove)$/)) {
+                //console.log('regex: ' + funcName);
+                skippedFunctions++;
+                return true;
+            }
+
+            if(funcName.match(/(innerHTML|innerText|textContent|wholeText)$/)) {
+                skippedFunctions++;
+                return true
+            }
+
+            if(funcName.match(/^window\.canvas\..*(textContent|wholeText|data)$/)) {
+                skippedFunctions++;
+                return true;
+            }
+
             if(exclude.indexOf(funcName)>=0) {
                 skippedFunctions++;
                 return true;
-            } else {
-                return false;
             }
+
+            return false;
+        }
+
+        function checkBroken(item) {
+            if (!(document.getElementById('log'))) {
+                console.error(item + ' broke the page!');
+                return true;
+            }
+            if(!(document.getElementById('glCanvas'))) {
+                console.error(item + ' broke the page!');
+                return true;
+            }
+
+            return false;
         }
 
         function runFunc(func) {
@@ -135,16 +176,9 @@
                             success: false,
                             message: mString
                         };
-
                     }
-
                 }
-
-
-
-
             }
-
         }
 
         function log(level, o) {
@@ -275,6 +309,8 @@
             log(LOG_INFO, "Waiting for browser identifier\n");
 
             var ident = null;
+            let successfulCount = 0;
+
             if (document.location.hash.indexOf("#") != -1) {
                 ident = (document.location.hash.substr(1).replace(/-/g, "="));
                 if (ident == "auto") {
@@ -289,18 +325,65 @@
 
                 add_webgl();
 
+                //0th Hook: Before first scan
+
+                let temp = {};
+                let t_root = eval(root_name);
+
+                scan(t_root, root_name, temp, 0);
+
+                let it;
+                for (it in temp) {
+                    if(skipFunc(it)) {
+                        continue;
+                    }
+
+                    runFunc(it);
+
+                    if(checkBroken(it))
+                        return;
+                }
+
+
+
                 start = window.performance.now();
                 log(LOG_INFO, "Start collecting properties at root \"" + root_name + "\"");
-                var root = eval(root_name);
+                let root = eval(root_name);
                 log(LOG_DEBUG, "Root object: " + root);
 
                 var fp = {};
                 scan(root, root_name, fp, 0);
-                //First hook: After first scan
 
+                let funcCount = -1;
 
+                let item;
+                let result;
+                for(item in fp) {
+                    funcCount++;
+                    if(skipFunc(item)) {
+                        //log(LOG_WARNING, item + ' skipped' + ' [' + funcCount + ']');
+                        continue;
+                    }
 
+                    result = runFunc(item);
+                    if(checkBroken(item))
+                        return;
 
+                    if(result) {
+                        if(result.success) {
+                            //console.debug(item + ': ' + result + ' [' + funcCount + ']');
+                            //log(LOG_RESULT, item + ': ' + result.message + ' [' + funcCount + ']');
+                            fp[item]=result.message;
+                            successfulCount++
+                        } else {
+                            //console.debug(item + ': ' + result + ' [' + funcCount + ']');
+                            //log(LOG_ERROR, item + ': ' + result.message + ' [' + funcCount + ']');
+                        }
+                    } else {
+                        //log(LOG_ERROR, item + ': failed' + ' [' + funcCount + ']');
+                        continue;
+                    }
+                }
 
                 log(LOG_DEBUG, "Scan done");
                 var scan1 = JSON.parse(JSON.stringify(fp));
@@ -309,8 +392,10 @@
                 var prop = 0;
                 for (var i in fp) prop++;
                 log(LOG_RESULT, "Found " + prop + " properties");
+                log(LOG_RESULT, successfulCount + " successful executions");
+                log(LOG_WARNING, skippedFunctions + " skipped functions");
                 log(LOG_RESULT, "Duplicates: " + dups);
-                document.getElementById("log").innerHTML = logconsole;
+                log(LOG_DEBUG, "-------------SCAN2-------------");
 
                 root = eval(root_name);
                 fp = {};
@@ -319,6 +404,40 @@
                     dups = 0;
                     log(LOG_DEBUG, "Root object: " + root);
                     scan(root, root_name, fp, 0);
+
+
+                    skippedFunctions=0;
+                    successfulCount=0;
+                    funcCount=-1;
+                    for(item in fp) {
+                        funcCount++;
+                        if(skipFunc(item)) {
+                            //log(LOG_WARNING, item + ' skipped' + ' [' + funcCount + ']');
+                            continue;
+                        }
+
+                        result = runFunc(item);
+                        if(checkBroken(item))
+                            return;
+
+                        if(result) {
+                            if(result.success) {
+                                //console.debug(item + ': ' + result + ' [' + funcCount + ']');
+                                //log(LOG_RESULT, item + ': ' + result.message + ' [' + funcCount + ']');
+                                fp[item]=result.message;
+                                successfulCount++;
+                            } else {
+                                //console.debug(item + ': ' + result + ' [' + funcCount + ']');
+                                //log(LOG_ERROR, item + ': ' + result.message + ' [' + funcCount + ']');
+                            }
+                        } else {
+                            //log(LOG_ERROR, item + ': not a function!' + ' [' + funcCount + ']');
+                            continue;
+                        }
+                    }
+
+
+
                     log(LOG_DEBUG, "Scan done");
                     var scan2 = JSON.parse(JSON.stringify(fp));
                     log(LOG_INFO, "Second scan saved");
@@ -326,6 +445,8 @@
                     var prop2 = 0;
                     for (var i in fp) prop2++;
                     log(LOG_RESULT, "Found " + prop2 + " properties");
+                    log(LOG_RESULT, successfulCount + " successful executions");
+                    log(LOG_WARNING, skippedFunctions + " skipped functions");
                     log(LOG_RESULT, "Duplicates: " + dups);
                     if (prop != prop2) {
                         var diff = Math.abs(prop - prop2);
@@ -333,6 +454,7 @@
                     }
 
                     // get differences
+                    logconsole+='<br />';
                     log(LOG_INFO, "Remove unstable properties");
                     var l = 0;
                     var rem = 0, usable = 0;
@@ -346,79 +468,6 @@
                     }
                     log(LOG_RESULT, rem + " propert" + (rem == 1 ? "y" : "ies") + " removed due to difference between scans");
                     log(LOG_RESULT, usable + " usable propert" + (usable == 1 ? "y" : "ies"));
-
-                    log(LOG_DEBUG, '-------------------------------------------------------');
-
-                    //Best place to hook into TODO
-
-                    let mString = '';
-                    let funcCount = -1;
-
-
-
-                    let item;
-
-
-/*
-                    let keys = Object.keys(ok);
-
-
-                    console.debug(keys[14492]);
-                    return;*/
-                    let result;
-                    for(item in ok) {
-                        funcCount++;
-                        if(skipFunc(item)) {
-                            log(LOG_WARNING, item + ' skipped' + ' [' + funcCount + ']');
-                            continue;
-                        }
-
-                        result = runFunc(item);
-                        if(!(document.getElementById('log'))) {
-                            console.error(item + ' broke the page!');
-                            return;
-                        }
-                        if(result) {
-                            if(result.success) {
-                                //console.debug(item + ': ' + result + ' [' + funcCount + ']');
-                                log(LOG_RESULT,item + ': ' + result.message + ' [' + funcCount + ']');
-                                successfulCount++;
-                            } else {
-                                //console.debug(item + ': ' + result + ' [' + funcCount + ']');
-                                log(LOG_ERROR,item + ': ' + result.message + ' [' + funcCount + ']');
-                            }
-
-                        } else {
-                            //log(LOG_ERROR, item + ': not a function!' + ' [' + funcCount + ']');
-                            continue;
-                        }
-
-
-                        /*if(skipFunc(item)) {//If item is a function which would break routine, skip it
-                            log(LOG_WARNING, item + ' skipped' + ' [' + funcCount + ']');
-                            continue;
-                        }
-                        try {
-                            mString = eval(item+'()');
-                            log(LOG_DEBUG, item + ': ' + mString + ' [' + funcCount + ']');
-                            console.debug(new Date().toLocaleTimeString() + ' ' + item + ': ' + mString + ' [' + funcCount + ']')
-                            successfulCount++;
-                        } catch(e) {
-                            log(LOG_ERROR, item + ': ' + e.toString() + ' [' + funcCount + ']');
-                            console.error(new Date().toLocaleTimeString() + ' ' + item + ': ' + e.toString() + ' [' + funcCount + ']');
-                        }
-
-                        if(!(document.getElementById('log'))) {
-                            console.error(item + ' broke the page!');
-                            return;
-                        }*/
-                    }
-                    log(LOG_WARNING, 'Skipped functions: ' + skippedFunctions);
-                    log(LOG_RESULT, 'Succesful executions: ' + successfulCount);
-                    log(LOG_ERROR, 'DEBUG EXIT');
-                    console.debug('------END------');
-                    document.getElementById("log").innerHTML = logconsole;
-                    return;
 
                     console.log(l);
 
