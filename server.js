@@ -3,6 +3,9 @@ var fileSystem = require('fs');
 var path = require('path');
 var qs = require('querystring');
 
+const {random, make} = require("@mozillasecurity/octo");
+random.init();
+
 var fps = {};
 
 fileSystem.readFile('./data.json', function read(err, data) {
@@ -159,6 +162,9 @@ function startServer() {
 
                 var readStream = fileSystem.createReadStream(filePath);
                 readStream.pipe(res);
+            } else if(req.url == "/randType") {
+                res.write(make.types.random());
+                res.end();
             } else {
                 if (req.url.indexOf("/delete") == 0) {
                     var identifier = new Buffer(req.url.substr(req.url.indexOf("?id=") + 4).replace(/-/g, "="), "base64").toString();
