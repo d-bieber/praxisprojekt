@@ -68,18 +68,18 @@
         }
 
         function skipFunc(funcName) {
-            if(funcName.match(/^window\.canvas\..*(replaceWith|remove)$/)) {
+            if(funcName.match(/^window\.canvas\..*(replaceWith|remove|replaceChildren)$/)) {
                 //console.log('regex: ' + funcName);
                 skippedFunctions++;
                 return true;
             }
 
-            if(funcName.match(/(innerHTML|innerText|textContent|wholeText)$/)) {
+            if(funcName.match(/(innerHTML|innerText|textContent|wholeText|replaceChildren)$/)) {
                 skippedFunctions++;
                 return true
             }
 
-            if(funcName.match(/^window\.canvas\..*(textContent|wholeText|data)$/)) {
+            if(funcName.match(/^window\.canvas\..*(textContent|wholeText|data|text)$/)) {
                 skippedFunctions++;
                 return true;
             }
@@ -102,6 +102,17 @@
                 return true;
             }
 
+            return false;
+        }
+
+        function callTypes() {
+            let request = new XMLHttpRequest();
+            request.open('GET', '/randType', false);
+            request.send(null);
+
+            if(request.status==200) {
+                return request.responseText;
+            }
             return false;
         }
 
@@ -144,12 +155,109 @@
                     mString.match(/(At least \d+ (argument|arguments) required, but only \d+ passed)/g) ||//SpiderMonkey: Firefox
                     mString.match(/(\d+ (argument|arguments) required, but only \d+ present.)/g)) {//V8: Chrome, Opera
                     //let arguments = mString.match(/(\d[\d\.]*)/g);
-                    let arguments = mString.match(/( \d *)/g);
+                    let args = mString.match(/( \d *)/g);
+                    args = parseInt(args[0]);
 
-                    //log(LOG_WARNING,func + ': Expected arguments: ' + arguments);
+                    //log(LOG_WARNING,func + ': Expected arguments: ' + args);
 
+                    const paramList= ["string","new Object","false","5"];//String, Number, Boolean, Object
                     let argString = '';
-                    switch(parseInt(arguments[0])) {
+
+
+                    for(item of paramList) {
+                        argString = item;
+                        //console.log(argString);
+
+                        if(args==1) {
+                            try {
+                                mString = JSON.stringify(eval(func + '(' + argString + ')'));
+                                return {
+                                    success: true,
+                                    message: mString + ' (SUCCESS WITH ' + argString + ')'
+                                };
+                            } catch(e) {
+                                mString = e.message.toString();
+                                //console.log(mString);
+                                continue;
+                            }
+                        }
+
+                        for(item2 of paramList) {
+                            if(args<2)
+                                break;
+
+                            argString = item + ', ' + item2;
+                            //console.log(argString);
+
+                            if(args==2) {
+                                try {
+                                    mString = JSON.stringify(eval(func + '(' + argString + ')'));
+                                    return {
+                                        success: true,
+                                        message: mString + ' (SUCCESS WITH ' + argString + ')'
+                                    };
+                                } catch(e) {
+                                    mString = e.message.toString();
+                                    //console.log(mString);
+                                    continue;
+                                }
+                            }
+
+
+                            for(item3 of paramList) {
+                                if(args<3)
+                                    break;
+
+                                argString = item + ', ' + item2 + ', ' + item3;
+                                //console.log(argString);
+
+                                if(args==3) {
+                                    try {
+                                        mString = JSON.stringify(eval(func + '(' + argString + ')'));
+                                        return {
+                                            success: true,
+                                            message: mString + ' (SUCCESS WITH ' + argString + ')'
+                                        };
+                                    } catch(e) {
+                                        mString = e.message.toString();
+                                        //console.log(mString);
+                                        continue;
+                                    }
+                                }
+
+                                for(item4 of paramList) {
+                                    if(args<4)
+                                        break;
+
+                                    argString = item + ', ' + item2 + ', ' + item3 + ',' + item4;
+                                    //console.log(argString);
+
+                                    if(args==4) {
+                                        try {
+                                            mString = JSON.stringify(eval(func + '(' + argString + ')'));
+                                            return {
+                                                success: true,
+                                                message: mString + ' (SUCCESS WITH ' + argString + ')'
+                                            };
+                                        } catch(e) {
+                                            mString = e.message.toString();
+                                            //console.log(mString);
+                                            continue;
+                                        }
+                                    }
+
+                                }
+                            }
+                        }
+                    }
+
+                    return {
+                        success: false,
+                        message: 'Could not run ' + func
+                    };
+
+
+                    /*switch(parseInt(args[0])) {
                         case 1:
                             //argString = func
                             argString = '"testing"';
@@ -158,14 +266,23 @@
                             argString = '"testing", 5';
                             //argString = func + ', 5';
                             break;
+                        case 3:
+                            argString = '"testing", 5, "testing2"';
+                            break;
+                        case 4:
+                            argString = '"testing", 5, "testing2", 12';
+                            break;
+                        case 5:
+                            argString = '"testing", 5, "testing2", 12', "testing3";
+                            break;
                         default:
                             return {
                                 success: false,
                                 message: mString//TODO
                             };
-                    }
+                    }*/
 
-                    try {
+                    /*try {
                         mString = JSON.stringify(eval(func + '(' + argString + ')'));
                         return {
                             success: true,
@@ -177,7 +294,7 @@
                             success: false,
                             message: mString
                         };
-                    }
+                    }*/
                 }
             }
         }
@@ -373,12 +490,12 @@
                     if(result) {
                         if(result.success) {
                             //console.debug(item + ': ' + result + ' [' + funcCount + ']');
-                            //log(LOG_RESULT, item + ': ' + result.message + ' [' + funcCount + ']');
+                            log(LOG_RESULT, item + ': ' + result.message + ' [' + funcCount + ']');
                             fp[item]=result.message;
                             successfulCount++
                         } else {
                             //console.debug(item + ': ' + result + ' [' + funcCount + ']');
-                            //log(LOG_ERROR, item + ': ' + result.message + ' [' + funcCount + ']');
+                            log(LOG_ERROR, item + ': ' + result.message + ' [' + funcCount + ']');
                         }
                     } else {
                         //log(LOG_ERROR, item + ': failed' + ' [' + funcCount + ']');
