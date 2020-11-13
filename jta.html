@@ -17,6 +17,9 @@
 
         let skippedFunctions = 0;
 
+        let notAFunction = 0;
+        let functionCounter = 0;
+
         var LOG_DEBUG = 1, LOG_INFO = 2, LOG_WARNING = 4, LOG_ERROR = 8, LOG_RESULT = 16;
 
         const exclude = [
@@ -74,7 +77,7 @@
                 return true;
             }
 
-            if(funcName.match(/(innerHTML|innerText|textContent|wholeText|replaceChildren)$/)) {
+            if(funcName.match(/(innerHTML|innerText|textContent|wholeText|replaceChildren|runFunc)$/)) {
                 skippedFunctions++;
                 return true
             }
@@ -116,7 +119,124 @@
             return false;
         }
 
+
+        function executeArguments(func, argString) {
+            try {
+                mString = JSON.stringify(eval(func + '(' + argString + ')'));
+                return {
+                    success: true,
+                    message: mString
+                };
+            } catch(e) {
+                mString = e.message.toString();
+                return {
+                    success: false,
+                    message: mString
+                }
+                //console.log(mString);
+            }
+        }
+
+        /****************************
+         Bruteforce Arguments
+         *****************************/
+        function bruteforceArgs(func, args) {
+            const paramList= ["string","new Object","false","5"];//String, Number, Boolean, Object (alte Reihenfolge)
+            let argString = '';
+            let mString =  '';
+
+            if(args > 5)
+                return {
+                    success: false,
+                    message: 'Too many arguments expected (' + args + ')'
+                };
+
+            for(let item of paramList) {
+                argString = item;
+                //console.log(argString);
+
+                if(args==1) {
+                    let result = executeArguments(func, argString);
+                    if(result.success)
+                        return result;
+                    continue;
+
+
+                }
+
+                for(let item2 of paramList) {
+                    if(args<2)
+                        break;
+
+                    argString = item + ', ' + item2;
+                    //console.log(argString);
+
+                    if(args==2) {
+                        let result = executeArguments(func, argString);
+                        if(result.success)
+                            return result;
+                        continue;
+                    }
+
+
+                    for(let item3 of paramList) {
+                        if(args<3)
+                            break;
+
+                        argString = item + ', ' + item2 + ', ' + item3;
+                        //console.log(argString);
+
+                        if(args==3) {
+                            let result = executeArguments(func, argString);
+                            if(result.success)
+                                return result;
+                            continue;
+                        }
+
+                        for(let item4 of paramList) {
+                            if(args<4)
+                                break;
+
+                            argString = item + ', ' + item2 + ', ' + item3 + ',' + item4;
+                            //console.log(argString);
+
+                            if(args==4) {
+                                let result = executeArguments(func, argString);
+                                if(result.success)
+                                    return result;
+                                continue;
+                            }
+
+                            for(let item5 of paramList) {
+                                if (args < 5)
+                                    break;
+
+                                argString = item + ', ' + item2 + ', ' + item3 + ',' + item4 + ', ' + item5;
+                                //console.log(argString);
+
+                                if (args == 5) {
+                                    let result = executeArguments(func, argString);
+                                    if(result.success)
+                                        return result;
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return {
+                success: false,
+                message: mString
+            };
+        }
+
+        /****************************
+         Run Functions
+         *****************************/
         function runFunc(func) {
+            functionCounter++;
             let mString = '';
             try {
                 mString = JSON.stringify(eval(func + '()'));
@@ -127,10 +247,21 @@
             } catch(e) {
                 mString = e.message.toString();
 
-
+                if(mString.includes('Illegal constructor')) {//TODO
+                    return {
+                        success: false,
+                        message: 'Illegal constructor'
+                    }
+                }
 
                 if(mString.includes(' is not a function')) {//TODO: #4
-                    return false;
+                    //log(LOG_WARNING, func + ': ' + mString)
+                    notAFunction++;
+                    //return false;
+                    return {
+                        success: false,
+                        message: 'Not a function DEBUG'
+                    }
                 }
 
                 if(mString.match(/('new' is required)/g) || //SpiderMonkey
@@ -147,142 +278,36 @@
                         };
                     }catch (e) {
                         mString = e.message.toString();
-                        return;
+                        return {
+                            success: false,
+                            message: 'Constructor Argument Handling Todo'
+                        };
                         //TODO new argument handling
                     }
                 }
-                if(mString.match(/(requires at least \d+ (argument|arguments), but only \d+ were passed)/g) ||//SpiderMonkey: Firefox
-                    mString.match(/(At least \d+ (argument|arguments) required, but only \d+ passed)/g) ||//SpiderMonkey: Firefox
-                    mString.match(/(\d+ (argument|arguments) required, but only \d+ present.)/g)) {//V8: Chrome, Opera
-                    //let arguments = mString.match(/(\d[\d\.]*)/g);
-                    let args = mString.match(/( \d *)/g);
-                    args = parseInt(args[0]);
 
-                    //log(LOG_WARNING,func + ': Expected arguments: ' + args);
+                if (mString.match(/(can\'t convert undefined to)/)) {
+                    let expectedVal = mString.match(/(\w*$)/g)[0];
 
-                    const paramList= ["string","new Object","false","5"];//String, Number, Boolean, Object
-                    let argString = '';
+                    if(expectedVal.toLowerCase().contains("int"))
+                        argString = "5";
 
+                    else if(expectedVal.toLowerCase().contains("string"))
+                        argString = "string";
 
-                    for(item of paramList) {
-                        argString = item;
-                        //console.log(argString);
+                    else if(expectedVal.toLowerCase().contains("object"))
+                        argString = "new Object";
 
-                        if(args==1) {
-                            try {
-                                mString = JSON.stringify(eval(func + '(' + argString + ')'));
-                                return {
-                                    success: true,
-                                    message: mString + ' (SUCCESS WITH ' + argString + ')'
-                                };
-                            } catch(e) {
-                                mString = e.message.toString();
-                                //console.log(mString);
-                                continue;
-                            }
+                    else if(expectedVal.toLowerCase().contains("boolean"))
+                        argString = "false"
+
+                    else
+                        return {
+                            success: "false",
+                            message: "Undefined Run failed"
                         }
 
-                        for(item2 of paramList) {
-                            if(args<2)
-                                break;
-
-                            argString = item + ', ' + item2;
-                            //console.log(argString);
-
-                            if(args==2) {
-                                try {
-                                    mString = JSON.stringify(eval(func + '(' + argString + ')'));
-                                    return {
-                                        success: true,
-                                        message: mString + ' (SUCCESS WITH ' + argString + ')'
-                                    };
-                                } catch(e) {
-                                    mString = e.message.toString();
-                                    //console.log(mString);
-                                    continue;
-                                }
-                            }
-
-
-                            for(item3 of paramList) {
-                                if(args<3)
-                                    break;
-
-                                argString = item + ', ' + item2 + ', ' + item3;
-                                //console.log(argString);
-
-                                if(args==3) {
-                                    try {
-                                        mString = JSON.stringify(eval(func + '(' + argString + ')'));
-                                        return {
-                                            success: true,
-                                            message: mString + ' (SUCCESS WITH ' + argString + ')'
-                                        };
-                                    } catch(e) {
-                                        mString = e.message.toString();
-                                        //console.log(mString);
-                                        continue;
-                                    }
-                                }
-
-                                for(item4 of paramList) {
-                                    if(args<4)
-                                        break;
-
-                                    argString = item + ', ' + item2 + ', ' + item3 + ',' + item4;
-                                    //console.log(argString);
-
-                                    if(args==4) {
-                                        try {
-                                            mString = JSON.stringify(eval(func + '(' + argString + ')'));
-                                            return {
-                                                success: true,
-                                                message: mString + ' (SUCCESS WITH ' + argString + ')'
-                                            };
-                                        } catch(e) {
-                                            mString = e.message.toString();
-                                            //console.log(mString);
-                                            continue;
-                                        }
-                                    }
-
-                                }
-                            }
-                        }
-                    }
-
-                    return {
-                        success: false,
-                        message: 'Could not run ' + func
-                    };
-
-
-                    /*switch(parseInt(args[0])) {
-                        case 1:
-                            //argString = func
-                            argString = '"testing"';
-                            break;
-                        case 2:
-                            argString = '"testing", 5';
-                            //argString = func + ', 5';
-                            break;
-                        case 3:
-                            argString = '"testing", 5, "testing2"';
-                            break;
-                        case 4:
-                            argString = '"testing", 5, "testing2", 12';
-                            break;
-                        case 5:
-                            argString = '"testing", 5, "testing2", 12', "testing3";
-                            break;
-                        default:
-                            return {
-                                success: false,
-                                message: mString//TODO
-                            };
-                    }*/
-
-                    /*try {
+                    try {
                         mString = JSON.stringify(eval(func + '(' + argString + ')'));
                         return {
                             success: true,
@@ -290,11 +315,28 @@
                         };
                     } catch(e) {
                         mString = e.message.toString();
+                        //console.log(mString);
                         return {
-                            success: false,
+                            succes: false,
                             message: mString
-                        };
-                    }*/
+                        }
+                    }
+
+                    
+
+
+                }
+
+                if(mString.match(/(requires at least \d+ (argument|arguments), but only \d+ were passed)/g) ||//SpiderMonkey: Firefox
+                    mString.match(/(At least \d+ (argument|arguments) required, but only \d+ passed)/g) ||//SpiderMonkey: Firefox
+                    mString.match(/(\d is not a valid argument count)/g) ||
+                    mString.match(/(\d+ (argument|arguments) required, but only \d+ present.)/g)) {//V8: Chrome, Opera
+                    //let arguments = mString.match(/(\d[\d\.]*)/g);
+                    let args = mString.match(/( \d *)/g);
+                    args = parseInt(args[0]);
+
+
+                    return bruteforceArgs(func, args);
                 }
             }
         }
@@ -429,6 +471,8 @@
             var ident = null;
             let successfulCount = 0;
 
+            notAFunction = 0;
+
             if (document.location.hash.indexOf("#") != -1) {
                 ident = (document.location.hash.substr(1).replace(/-/g, "="));
                 if (ident == "auto") {
@@ -443,8 +487,9 @@
 
                 add_webgl();
 
-                //0th Hook: Before first scan
-
+                /****************************
+                0th Hook: Before first scan
+                *****************************/
                 let temp = {};
                 let t_root = eval(root_name);
 
@@ -469,6 +514,10 @@
                 let root = eval(root_name);
                 log(LOG_DEBUG, "Root object: " + root);
 
+                /****************************
+                 1st Hook: First scan
+                 *****************************/
+
                 var fp = {};
                 scan(root, root_name, fp, 0);
 
@@ -476,6 +525,8 @@
 
                 let item;
                 let result;
+                notAFunction = 0;
+                functionCounter = 0;
                 for(item in fp) {
                     funcCount++;
                     if(skipFunc(item)) {
@@ -490,7 +541,7 @@
                     if(result) {
                         if(result.success) {
                             //console.debug(item + ': ' + result + ' [' + funcCount + ']');
-                            log(LOG_RESULT, item + ': ' + result.message + ' [' + funcCount + ']');
+                            //log(LOG_RESULT, item + ': ' + result.message + ' [' + funcCount + ']');
                             fp[item]=result.message;
                             successfulCount++
                         } else {
@@ -498,7 +549,7 @@
                             log(LOG_ERROR, item + ': ' + result.message + ' [' + funcCount + ']');
                         }
                     } else {
-                        //log(LOG_ERROR, item + ': failed' + ' [' + funcCount + ']');
+                        log(LOG_ERROR, item + ': failed' + ' [' + funcCount + ']');
                         continue;
                     }
                 }
@@ -515,6 +566,11 @@
                 log(LOG_RESULT, "Duplicates: " + dups);
                 log(LOG_DEBUG, "-------------SCAN2-------------");
 
+                /****************************
+                 2nd Hook: Second scan
+                 *****************************/
+
+
                 root = eval(root_name);
                 fp = {};
 
@@ -526,6 +582,8 @@
 
                     skippedFunctions=0;
                     successfulCount=0;
+                    notAFunction=0;
+                    functionCounter = 0;
                     funcCount=-1;
                     for(item in fp) {
                         funcCount++;
@@ -549,7 +607,7 @@
                                 //log(LOG_ERROR, item + ': ' + result.message + ' [' + funcCount + ']');
                             }
                         } else {
-                            //log(LOG_ERROR, item + ': not a function!' + ' [' + funcCount + ']');
+                            //log(LOG_ERROR, item + ': result false' + ' [' + funcCount + ']');
                             continue;
                         }
                     }
@@ -563,6 +621,8 @@
                     var prop2 = 0;
                     for (var i in fp) prop2++;
                     log(LOG_RESULT, "Found " + prop2 + " properties");
+                    log(LOG_WARNING, functionCounter + " functionCounter");
+                    log(LOG_RESULT, notAFunction + " not a function");
                     log(LOG_RESULT, successfulCount + " successful executions");
                     log(LOG_WARNING, skippedFunctions + " skipped functions");
                     log(LOG_RESULT, "Duplicates: " + dups);
