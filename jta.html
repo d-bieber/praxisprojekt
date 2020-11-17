@@ -247,6 +247,15 @@
             } catch(e) {
                 mString = e.message.toString();
 
+
+                /*if(mString.includes(' is not a function')) {
+                    return;
+                }*/
+                log(LOG_ERROR, '; ' + func + '() ; ' + mString + ' ; false');
+                return;
+
+
+
                 if(mString.includes('Illegal constructor')) {//TODO
                     return {
                         success: false,
@@ -322,11 +331,12 @@
                         }
                     }
 
-                    
+
 
 
                 }
 
+                //TODO Vielleicht dynamisch setzen?
                 if(mString.match(/(requires at least \d+ (argument|arguments), but only \d+ were passed)/g) ||//SpiderMonkey: Firefox
                     mString.match(/(At least \d+ (argument|arguments) required, but only \d+ passed)/g) ||//SpiderMonkey: Firefox
                     mString.match(/(\d is not a valid argument count)/g) ||
@@ -336,7 +346,7 @@
                     args = parseInt(args[0]);
 
 
-                    return bruteforceArgs(func, args);
+                    return bruteforceArgs(func, args);//TODO Fälle behandeln
                 }
             }
         }
@@ -444,7 +454,7 @@
 
                 var cnt = 0;
                 var exts = 0;
-                for (j in glext) {
+                for (let j in glext) {
                     var ext = gl.getExtension(glext[j]);
                     if (ext != null) {
                         exts++;
@@ -501,11 +511,22 @@
                         continue;
                     }
 
-                    runFunc(it);
+                    //runFunc(it);
+
+                    let result = runFunc(it);
+                    if(!result)
+                        continue;
+                    if(result.success) {
+                        log(LOG_ERROR, '; ' + it + '() ; ' + result.message + ' ; true');
+                    }
+
 
                     if(checkBroken(it))
                         return;
                 }
+
+                document.getElementById("log").innerHTML = logconsole;
+                return;
 
 
 
