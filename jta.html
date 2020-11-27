@@ -105,6 +105,11 @@
                 return true;
             }
 
+            if(window.location.pathname!='/record') {
+                console.error(item + ' broke the page!');
+                return true;
+            }
+
             return false;
         }
 
@@ -120,9 +125,9 @@
         }
 
 
-        function executeArguments(func, argString) {
+        function executeArguments(execString, argString) {
             try {
-                mString = JSON.stringify(eval(func + '(' + argString + ')'));
+                mString = JSON.stringify(eval(execString + '(' + argString + ')'));
                 return {
                     success: true,
                     message: mString
@@ -140,12 +145,14 @@
         /****************************
          Bruteforce Arguments
          *****************************/
-        function bruteforceArgs(func, args) {
-            const paramList= ["string","new Object","false","5"];//String, Number, Boolean, Object (alte Reihenfolge)
+        function bruteforceArgs(execString, func, args) {
+            const paramList= ["'string'","5","true","new Object"];//String, Number, Boolean, Object (alte Reihenfolge)
             let argString = '';
             let mString =  '';
 
-            if(args > 5)
+
+
+            if(args > 4)
                 return {
                     success: false,
                     message: 'Too many arguments expected (' + args + ')'
@@ -156,7 +163,7 @@
                 //console.log(argString);
 
                 if(args==1) {
-                    let result = executeArguments(func, argString);
+                    let result = executeArguments(execString, argString);
                     if(result.success)
                         return result;
                     continue;
@@ -172,7 +179,7 @@
                     //console.log(argString);
 
                     if(args==2) {
-                        let result = executeArguments(func, argString);
+                        let result = executeArguments(execString, argString);
                         if(result.success)
                             return result;
                         continue;
@@ -187,7 +194,7 @@
                         //console.log(argString);
 
                         if(args==3) {
-                            let result = executeArguments(func, argString);
+                            let result = executeArguments(execString, argString);
                             if(result.success)
                                 return result;
                             continue;
@@ -201,25 +208,10 @@
                             //console.log(argString);
 
                             if(args==4) {
-                                let result = executeArguments(func, argString);
+                                let result = executeArguments(execString, argString);
                                 if(result.success)
                                     return result;
                                 continue;
-                            }
-
-                            for(let item5 of paramList) {
-                                if (args < 5)
-                                    break;
-
-                                argString = item + ', ' + item2 + ', ' + item3 + ',' + item4 + ', ' + item5;
-                                //console.log(argString);
-
-                                if (args == 5) {
-                                    let result = executeArguments(func, argString);
-                                    if(result.success)
-                                        return result;
-                                    continue;
-                                }
                             }
                         }
                     }
@@ -233,9 +225,58 @@
         }
 
         /****************************
+         Argument Oracle
+         *****************************/
+        function argOracle(func, mString) {
+            let execString = func;
+            let argCount = 4;
+
+            //Behandlung New
+            //TODO: Erweitern?
+            if(mString.match(/('new' is required)/g) || //SpiderMonkey
+                mString.match(/(requires 'new')/g) || //SpiderMonkey
+                mString.match(/(without new is forbidden)/g) ||//SpiderMonkey
+                mString.match(/(Please use the 'new' operator)/g)) {//v8
+                    execString = 'new ' + execString;
+            }
+
+            if(mString.match(/(requires at least \d+ (argument|arguments), but only \d+ were passed)/g) ||//SpiderMonkey: Firefox
+                mString.match(/(At least \d+ (argument|arguments) required, but only \d+ passed)/g) ||//SpiderMonkey: Firefox
+                mString.match(/(\d+ (argument|arguments) required, but only \d+ present.)/g)) {//V8: Chrome, Opera
+                    let argCount = mString.match(/( \d *)/g);
+                    argCount = parseInt(argCount[0]);
+            }
+
+            //Andere Fehler sind uns egal
+            //Werden einfach gebruteforced
+
+
+
+
+
+            //Behandlung New
+            //Behandlung Sonstiger Fehler(?)
+            //Behandlung Argumente (Bruteforce)
+            //  - Argumenteanzahl bekannt
+            //  - Argumenteanzahl unbekannt
+
+
+            //Zusammensetzen eines Strings der ausgeführt werden kann
+
+            return {
+                execString: execString,
+                argCount: argCount
+            };
+        }
+
+        /****************************
          Run Functions
          *****************************/
         function runFunc(func) {
+            log(LOG_DEBUG, 'Now running: ' + func);
+            document.getElementById("log").innerHTML += logconsole;
+
+
             functionCounter++;
             let mString = '';
             try {
@@ -247,13 +288,6 @@
             } catch(e) {
                 mString = e.message.toString();
 
-                if(mString.includes('Illegal constructor')) {//TODO
-                    return {
-                        success: false,
-                        message: 'Illegal constructor'
-                    }
-                }
-
                 if(mString.includes(' is not a function')) {//TODO: #4
                     //log(LOG_WARNING, func + ': ' + mString)
                     notAFunction++;
@@ -264,7 +298,7 @@
                     }
                 }
 
-                if(mString.match(/('new' is required)/g) || //SpiderMonkey
+                /*if(mString.match(/('new' is required)/g) || //SpiderMonkey
                     mString.match(/(requires 'new')/g) || //SpiderMonkey
                     mString.match(/(without new is forbidden)/g) ||//SpiderMonkey
                     mString.match(/(Please use the 'new' operator)/g)) {//v8
@@ -284,9 +318,9 @@
                         };
                         //TODO new argument handling
                     }
-                }
+                }*/
 
-                if (mString.match(/(can\'t convert undefined to)/)) {
+                /*if (mString.match(/(can\'t convert undefined to)/)) {
                     let expectedVal = mString.match(/(\w*$)/g)[0];
 
                     if(expectedVal.toLowerCase().contains("int"))
@@ -325,9 +359,9 @@
                     
 
 
-                }
+                }*/
 
-                if(mString.match(/(requires at least \d+ (argument|arguments), but only \d+ were passed)/g) ||//SpiderMonkey: Firefox
+                /*if(mString.match(/(requires at least \d+ (argument|arguments), but only \d+ were passed)/g) ||//SpiderMonkey: Firefox
                     mString.match(/(At least \d+ (argument|arguments) required, but only \d+ passed)/g) ||//SpiderMonkey: Firefox
                     mString.match(/(\d is not a valid argument count)/g) ||
                     mString.match(/(\d+ (argument|arguments) required, but only \d+ present.)/g)) {//V8: Chrome, Opera
@@ -337,7 +371,14 @@
 
 
                     return bruteforceArgs(func, args);
-                }
+                }*/
+
+                //let oracle = argOracle(func,mString);
+                return {
+                    succes: false,
+                    message: 'No Bruteforce'
+                };
+                //return bruteforceArgs(oracle.execString, func, oracle.argCount)
             }
         }
 
@@ -497,6 +538,8 @@
 
                 let it;
                 for (it in temp) {
+                    console.debug(it + ' wurde ausgeführt');
+
                     if(skipFunc(it)) {
                         continue;
                     }
@@ -546,10 +589,10 @@
                             successfulCount++
                         } else {
                             //console.debug(item + ': ' + result + ' [' + funcCount + ']');
-                            log(LOG_ERROR, item + ': ' + result.message + ' [' + funcCount + ']');
+                            //log(LOG_ERROR, item + ': ' + result.message + ' [' + funcCount + ']');
                         }
                     } else {
-                        log(LOG_ERROR, item + ': failed' + ' [' + funcCount + ']');
+                        //log(LOG_ERROR, item + ': failed' + ' [' + funcCount + ']');
                         continue;
                     }
                 }
@@ -598,15 +641,16 @@
 
                         if(result) {
                             if(result.success) {
-                                //console.debug(item + ': ' + result + ' [' + funcCount + ']');
+                                console.debug(item + ': ' + result + ' [' + funcCount + ']');
                                 //log(LOG_RESULT, item + ': ' + result.message + ' [' + funcCount + ']');
                                 fp[item]=result.message;
                                 successfulCount++;
                             } else {
-                                //console.debug(item + ': ' + result + ' [' + funcCount + ']');
+                                console.debug(item + ': ' + result + ' [' + funcCount + ']');
                                 //log(LOG_ERROR, item + ': ' + result.message + ' [' + funcCount + ']');
                             }
                         } else {
+                            console.debug(item + ': ' + result + ' [' + funcCount + ']');
                             //log(LOG_ERROR, item + ': result false' + ' [' + funcCount + ']');
                             continue;
                         }
@@ -762,7 +806,7 @@
 
         window.setTimeout(function () {
             test(target);
-        }, 1000);
+        }, 5000);
 
     })("window");
 </script>
