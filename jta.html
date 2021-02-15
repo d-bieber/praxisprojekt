@@ -94,7 +94,7 @@
             }
 
             let exErg = exclude.indexOf(funcName)>=0;
-            console.debug('Exclude: ' + funcName + ': ' + exErg);
+            //console.debug('Exclude: ' + funcName + ': ' + exErg);
             if(exErg) {
                 skippedFunctions++;
                 return true;
@@ -228,12 +228,18 @@
                     execString = 'new ' + execString;
             }
 
-            if(mString.match(/(requires at least \d+ (argument|arguments), but only \d+ were passed)/g) ||//SpiderMonkey: Firefox
+            try {
+                argCount = eval(func + '.length');
+
+            } catch(e) {
+            }
+
+            /*if(mString.match(/(requires at least \d+ (argument|arguments), but only \d+ were passed)/g) ||//SpiderMonkey: Firefox
                 mString.match(/(At least \d+ (argument|arguments) required, but only \d+ passed)/g) ||//SpiderMonkey: Firefox
                 mString.match(/(\d+ (argument|arguments) required, but only \d+ present.)/g)) {//V8: Chrome, Opera
                     let argCount = mString.match(/( \d *)/g);
                     argCount = parseInt(argCount[0]);
-            }
+            }*/
 
             //Andere Fehler sind uns egal
             //Werden erst einmal gebruteforced
@@ -264,19 +270,20 @@
 
                 if(mString.includes(' is not a function')) {
                     notAFunction++;
-                    return {
+                    return;
+                    /*return {
                         success: false,
                         message: 'Not a function DEBUG',
                         exec: null,
                         args: null
-                    }
+                    }*/
                 }
 
                 let oracle = argOracle(func,mString);
                 const t0 = performance.now();
                 let bfArgs = bruteforceArgs(oracle.execString, func, oracle.argCount)
                 const t1 = performance.now();
-                log(LOG_WARNING,`;${t1 - t0};` + func + ';' + bfArgs.message + ';' + bfArgs.exec + ';' + bfArgs.args + ';' + bfArgs.success)
+                //log(LOG_WARNING,`;${t1 - t0};` + func + ';' + bfArgs.message + ';' + bfArgs.exec + ';' + bfArgs.args + ';' + bfArgs.success)
                 //console.log(`Call to doSomething took ${t1 - t0} milliseconds.[Bruteforce with ` + func + ']');
                 return bfArgs;
 
@@ -330,8 +337,84 @@
                     }
                 }
 
+                /*var glext = [
+                    "ANGLE_instanced_arrays",
+                    "EXT_blend_minmax",
+                    "EXT_color_buffer_float",
+                    "EXT_color_buffer_half_float",
+                    "EXT_disjoint_timer_query",
+                    "EXT_float_blend",
+                    "EXT_frag_depth",
+                    "EXT_shader_texture_lod",
+                    "EXT_sRGB",
+                    "EXT_texture_compression_bptc",
+                    "EXT_texture_compression_rgtc",
+                    "EXT_texture_filter_anisotropic",
+                    "EXT_texture_norm16",
+                    "KHR_parallel_shader_compile",
+                    "OES_element_index_uint",
+                    "OES_fbo_render_mipmap",
+                    "OES_standard_derivatives",
+                    "OES_texture_float",
+                    "OES_texture_float_linear",
+                    "OES_texture_half_float",
+                    "OES_texture_half_float_linear",
+                    "OES_vertex_array_object",
+                    "OVR_multiview2",
+                    "WEBGL_color_buffer_float",
+                    "WEBGL_compressed_texture_astc",
+                    "WEBGL_compressed_texture_atc",
+                    "WEBGL_compressed_texture_etc",
+                    "WEBGL_compressed_texture_etc1",
+                    "WEBGL_compressed_texture_pvrtc",
+                    "WEBGL_compressed_texture_s3tc",
+                    "WEBGL_compressed_texture_s3tc_srgb",
+                    "WEBGL_debug_renderer_info",
+                    "WEBGL_debug_shaders",
+                    "WEBGL_depth_texture",
+                    "WEBGL_draw_buffers",
+                    "WEBGL_lose_context",
+                    "WEBGL_multi_draw"
+                ];*/
 
                 var glext = [
+                    "ANGLE_instanced_arrays",
+                    "EXT_blend_minmax",
+                    "EXT_color_buffer_float",
+                    "EXT_color_buffer_half_float",
+                    "EXT_disjoint_timer_query",
+                    "EXT_float_blend",
+                    "EXT_frag_depth",
+                    "EXT_shader_texture_lod",
+                    "EXT_sRGB",
+                    "EXT_texture_compression_bptc",
+                    "EXT_texture_compression_rgtc",
+                    "EXT_texture_filter_anisotropic",
+                    "EXT_texture_norm16",
+                    "KHR_parallel_shader_compile",
+                    "OES_element_index_uint",
+                    "OES_fbo_render_mipmap",
+                    "OES_standard_derivatives",
+                    "OES_texture_float",
+                    "OES_texture_float_linear",
+                    "OES_texture_half_float",
+                    "OES_texture_half_float_linear",
+                    "OES_vertex_array_object",
+                    "OVR_multiview2",
+                    "WEBGL_color_buffer_float",
+                    "WEBGL_compressed_texture_astc",
+                    "WEBGL_compressed_texture_atc",
+                    "WEBGL_compressed_texture_etc",
+                    "WEBGL_compressed_texture_etc1",
+                    "WEBGL_compressed_texture_pvrtc",
+                    "WEBGL_compressed_texture_s3tc",
+                    "WEBGL_compressed_texture_s3tc_srgb",
+                    "WEBGL_debug_renderer_info",
+                    "WEBGL_debug_shaders",
+                    "WEBGL_depth_texture",
+                    "WEBGL_draw_buffers",
+                    "WEBGL_lose_context",
+                    "WEBGL_multi_draw",
                     "ANGLE_instanced_arrays",
                     "EXT_blend_minmax",
                     "EXT_clip_cull_distance",
@@ -380,7 +463,58 @@
                     "WEBGL_texture_from_depth_video",
                     "WEBGL_texture_multisample",
                     "WEBGL_texture_source_iframe",
-                    "WEBGL_video_texture"];
+                    "WEBGL_video_texture"
+                ];
+                /*var glext = [
+                    "ANGLE_instanced_arrays",
+                    "EXT_blend_minmax",
+                    "EXT_clip_cull_distance",
+                    "EXT_color_buffer_float",
+                    "EXT_color_buffer_half_float",
+                    "EXT_disjoint_timer_query",
+                    "EXT_disjoint_timer_query_webgl2",
+                    "EXT_float_blend",
+                    "EXT_frag_depth",
+                    "EXT_shader_texture_lod",
+                    "EXT_sRGB",
+                    "EXT_texture_filter_anisotropic",
+                    "EXT_texture_storage",
+                    "OES_depth24",
+                    "OES_element_index_uint",
+                    "OES_fbo_render_mipmap",
+                    "OES_standard_derivatives",
+                    "OES_texture_float",
+                    "OES_texture_float_linear",
+                    "OES_texture_half_float",
+                    "OES_texture_half_float_linear",
+                    "OES_vertex_array_object",
+                    "WEBGL_color_buffer_float",
+                    "WEBGL_compressed_texture_astc",
+                    "WEBGL_compressed_texture_atc",
+                    "WEBGL_compressed_texture_etc",
+                    "WEBGL_compressed_texture_etc1",
+                    "WEBGL_compressed_texture_pvrtc",
+                    "WEBGL_compressed_texture_s3tc",
+                    "WEBGL_compressed_texture_s3tc_srgb",
+                    "WEBGL_debug",
+                    "WEBGL_debug_renderer_info",
+                    "WEBGL_debug_shader_precision",
+                    "WEBGL_debug_shaders",
+                    "WEBGL_depth_texture",
+                    "WEBGL_draw_buffers",
+                    "WEBGL_draw_elements_no_range_check",
+                    "WEBGL_dynamic_texture",
+                    "WEBGL_get_buffer_sub_data_async",
+                    "WEBGL_lose_context",
+                    "WEBGL_multiview",
+                    "WEBGL_security_sensitive_resources",
+                    "WEBGL_shared_resources",
+                    "WEBGL_subarray_uploads",
+                    "WEBGL_subscribe_uniform",
+                    "WEBGL_texture_from_depth_video",
+                    "WEBGL_texture_multisample",
+                    "WEBGL_texture_source_iframe",
+                    "WEBGL_video_texture"];*/
 
                 log(LOG_DEBUG, "[WebGL] Trying " + glext.length + " extensions");
 
@@ -432,7 +566,7 @@
                 /****************************
                 0th Hook: Before first scan
                 ****************************/
-                let temp = {};
+                /*let temp = {};
                 let t_root = eval(root_name);
 
                 scan(t_root, root_name, temp, 0);
@@ -448,9 +582,9 @@
 
                     if(checkBroken(it))
                         return;
-                }
+                }*/
 
-                log(LOG_ERROR,'------------------------------');
+                //log(LOG_ERROR,'------------------------------');
 
 
 
@@ -464,6 +598,7 @@
                  *****************************/
 
                 var fp = {};
+                let fp2 = {};
                 scan(root, root_name, fp, 0);
 
                 let funcCount = -1;
@@ -486,9 +621,10 @@
 
                     if(result) {
                         if(result.success) {
-                            fp[item]=result.message;
+                            fp2[item]=result.message;
                             successfulCount++
                         } else {
+                            fp2[item]=result.message;
                         }
                     } else {
                         continue;
@@ -496,11 +632,11 @@
                 }
 
                 log(LOG_DEBUG, "Scan done");
-                var scan1 = JSON.parse(JSON.stringify(fp));
+                var scan1 = JSON.parse(JSON.stringify(fp2));
                 log(LOG_INFO, "First scan saved, waiting 2 seconds for next scan");
 
                 var prop = 0;
-                for (var i in fp) prop++;
+                for (var i in fp2) prop++;
                 log(LOG_RESULT, "Found " + prop + " properties");
                 log(LOG_RESULT, successfulCount + " successful executions");
                 log(LOG_WARNING, skippedFunctions + " skipped functions");
@@ -514,6 +650,7 @@
 
                 root = eval(root_name);
                 fp = {};
+                fp2 = {};
 
                 window.setTimeout(function () {
                     dups = 0;
@@ -541,14 +678,15 @@
 
                         if(result) {
                             if(result.success) {
-                                console.debug(item + ': ' + result + ' [' + funcCount + ']');
-                                fp[item]=result.message;
+                                //console.debug(item + ': ' + result + ' [' + funcCount + ']');
+                                fp2[item]=result.message;
                                 successfulCount++;
                             } else {
-                                console.debug(item + ': ' + result + ' [' + funcCount + ']');
+                                fp2[item]=result.message;
+                                //console.debug(item + ': ' + result + ' [' + funcCount + ']');
                             }
                         } else {
-                            console.debug(item + ': ' + result + ' [' + funcCount + ']');
+                            //console.debug(item + ': ' + result + ' [' + funcCount + ']');
                             continue;
                         }
                     }
@@ -556,11 +694,11 @@
 
 
                     log(LOG_DEBUG, "Scan done");
-                    var scan2 = JSON.parse(JSON.stringify(fp));
+                    var scan2 = JSON.parse(JSON.stringify(fp2));
                     log(LOG_INFO, "Second scan saved");
 
                     var prop2 = 0;
-                    for (var i in fp) prop2++;
+                    for (var i in fp2) prop2++;
                     log(LOG_RESULT, "Found " + prop2 + " properties");
                     log(LOG_WARNING, functionCounter + " functionCounter");
                     log(LOG_RESULT, notAFunction + " not a function");
@@ -595,9 +733,15 @@
                     var oReq = new XMLHttpRequest();
                     oReq.addEventListener("load", function () {
                         log(LOG_INFO, "Done!");
+                        log(LOG_RESULT, "<a id='downloader'>[ Download ]</a>");
                         log(LOG_RESULT, "<a href='/'>[ Home ]</a> for profile overview");
 
                         document.getElementById("log").innerHTML = logconsole;
+
+                        //Adding download button
+                        let downloader = document.getElementById("downloader");
+                        downloader.setAttribute('href', 'data:application/json;charset=utf-8,' + JSON.stringify(ok));
+                        downloader.setAttribute('download', ident+'.json');
 
                     });
                     oReq.open("POST", document.location.protocol + "//" + document.location.host + "/log", true);
@@ -611,6 +755,19 @@
                 log(LOG_ERROR, "User aborted!");
             }
         }
+
+        /*function download(filename, text) {
+            var element = document.createElement('a');
+            element.setAttribute('href', 'data:application/json;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', filename);
+
+            //element.style.display = 'none';
+            document.body.appendChild(element);
+
+            //element.click();
+
+            //document.body.removeChild(element);
+        }*/
 
         function listAllProperties(o) {
             var result = [];

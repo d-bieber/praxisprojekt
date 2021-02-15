@@ -103,7 +103,7 @@ function startServer() {
                 }
 
                 // cross-check property
-                res.write("<table cellspacing=2 cellpadding=2 border=1 style='border: 1px solid gray; border-collapse: collapse;'><tr><th>Property</th><th><pre>" + b1 + "</pre></th><th><pre>" + b2 + "</pre></th></tr>");
+                res.write("<table cellspacing=2 cellpadding=2 border=1 style='border: 1px solid gray; border-collapse: collapse; width:100%; table-layout: fixed'><tr><th>Property</th><th>" + b1 + "</th><th>" + b2 + "</th></tr>");
 
                 count = 0;
                 for (var k in all_keys) {
@@ -125,10 +125,10 @@ function startServer() {
                         }
                     }
                     if (d.length > 1) {
-                        res.write("<tr><td><pre>" + all_keys[k] + "</pre></td>");
+                        res.write("<tr><td style='word-break: break-word'>" + all_keys[k] + "</td>");
 
                         for (var value in d) {
-                            res.write("<td><pre>" + d[value] + "</pre></td>");
+                            res.write("<td style='word-break: break-word'>" + d[value] + "</td>");
                         }
                         count++;
 
