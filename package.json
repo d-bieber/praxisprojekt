@@ -4,9 +4,9 @@
   "description": "",
   "main": "server.js",
   "dependencies": {
-    "@mozillasecurity/octo": "^2.0.0"
+    "@mozillasecurity/octo": "^2.0.0",
+    "nodemon": "^2.0.7"
   },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
