@@ -160,7 +160,8 @@
                     message: 'Too many arguments expected (' + args + ')',
                     exec: execString,
                     args: argString,
-                    diff: {}
+                    diff: {},
+                    time: null
                 };
 
             for(let item of paramList) {
@@ -212,7 +213,8 @@
                 message: result.message,
                 exec: execString,
                 args: argString,
-                diff: {}
+                diff: {},
+                time: result.time
             };
         }
 
@@ -576,7 +578,8 @@
                     message: 'Result not defined. Error!',
                     exec: null,
                     args: null,
-                    diff: null
+                    diff: null,
+                    time: null
                 };
             }
         }
@@ -584,6 +587,7 @@
          Run Functions
          *****************************/
         function runFunc(root_name, execString, argString='') {
+            let funcStart = window.performance.now();
             let diff = {};
 
             let mString;
@@ -595,7 +599,8 @@
                     message: mString,
                     exec: execString,
                     args: argString,
-                    diff: diff
+                    diff: diff,
+                    time: window.performance.now() - funcStart
                 };
             } catch(e) {
                 mString = e.message.toString();
@@ -604,7 +609,8 @@
                     message: mString,
                     exec: execString,
                     args: argString,
-                    diff: diff
+                    diff: diff,
+                    time: window.performance.now() - funcStart
                 };
             }
         }
@@ -699,9 +705,12 @@
                             successfulCount++;
                         }
                         fp[item] = {};
-                        fp[item]['value'] = result.message;//TODO Erweitern um weitere Ergebnisse
+                        fp[item]['value'] = result.message;
                         fp[item]['diff'] = result.diff;
+                        fp[item]['exec'] = result.exec;
+                        fp[item]['args'] = result.args;
                         fp[item]['success'] = result.success;
+                        fp[item]['time'] = result.time;
                         //log(LOG_ERROR,';' + item + ';' + result.exec + ';' + result.args + ';' + result.message + ';' + JSON.stringify(result.diff) + ';' + result.success);
                     } else {
                         //result==null is not a function
@@ -765,7 +774,10 @@
                             fp[item] = {};
                             fp[item]['value'] = result.message;
                             fp[item]['diff'] = result.diff;
+                            fp[item]['exec'] = result.exec;
+                            fp[item]['args'] = result.args;
                             fp[item]['success'] = result.success;
+                            fp[item]['time'] = result.time;
                             //log(LOG_ERROR,';' + item + ';' + result.exec + ';' + result.args + ';' + result.message + ';' + JSON.stringify(result.diff) + ';' + result.success);
                         } else {
                             continue;
@@ -800,13 +812,64 @@
                     for (let k in scan1) {
                         l++;
 
-                        if (JSON.stringify(scan1[k]) === JSON.stringify(scan2[k])) {
+                        if(JSON.stringify(scan1[k]['value']) === JSON.stringify(scan2[k]['value'])) {
+                            ok[k] = {};
+                            if(scan1[k]['value']==undefined)
+                                ok[k]['result'] = "undefined";
+                            else
+                                ok[k]['result'] = scan1[k]['value'];
+                            //ok[k]['diff1'] = JSON.stringify(scan1[k]['diff']).replace(/\r?\n|\r/g," ");
+                            ok[k]['diff'] = [];
+                            ok[k]['diff'][0] = JSON.stringify(scan1[k]['diff']);
+                            ok[k]['diff'][1] = JSON.stringify(scan2[k]['diff']);
+
+                            ok[k]['signature'] = [];
+                            ok[k]['signature'][0] = scan1[k]['exec'] + '(' + scan1[k]['args'] + ')';
+                            ok[k]['signature'][1] = scan2[k]['exec'] + '(' + scan2[k]['args'] + ')';
+                            /*ok[k]['args'] = [];
+                            ok[k]['args'][0] = scan1[k]['args'];
+                            ok[k]['args'][1] = scan2[k]['args'];*/
+
+                            ok[k]['success'] = scan1[k]['success'];
+
+                            /*if(scan1[k]['time'] == undefined && scan2[k]['time'] == undefined) {
+                                ok[k]['time'] = null;
+                                ok[k]['timeAv'] = null;
+                            } else {
+                                ok[k]['time'] = [];
+                                ok[k]['time'][0] = scan1[k]['time'];
+                                ok[k]['time'][1] = scan2[k]['time'];
+                                ok[k]['timeAv'] = (scan1[k]['time'] + scan2[k]['time']) / 2;
+                            }*/
+                            ok[k]['time'] = [];
+                            ok[k]['time'][0] = scan1[k]['time'];
+                            ok[k]['time'][1] = scan2[k]['time'];
+                            ok[k]['timeAv'] = (scan1[k]['time'] + scan2[k]['time']) / 2;
+                            usable++;
+
+                            //log(LOG_ERROR,'° ' + k + '° ' + ok[k]['value'] + '° ' + ok[k]['diff1'] + '° ' + ok[k]['diff2'] + '° ' + ok[k]['success'] + '° ' + ok[k]['time1'] + '° ' + ok[k]['time2'] + '° ' + ok[k]['timeAv']);
+
+                            /*log(LOG_ERROR,'---------- ' + k + ' ----------');
+                            log(LOG_ERROR,ok[k]['value']);
+                            log(LOG_ERROR,JSON.stringify(ok[k]['diff1']));
+                            log(LOG_ERROR,JSON.stringify(ok[k]['diff2']));
+                            log(LOG_ERROR,ok[k]['success']);
+                            log(LOG_ERROR,ok[k]['time1']);
+                            log(LOG_ERROR,ok[k]['time2']);
+                            log(LOG_ERROR,ok[k]['timeAv']);
+                            log(LOG_ERROR,'------------------------------');*/
+
+                        } else {
+                            rem++;
+                        }
+
+                        /*if (JSON.stringify(scan1[k]) === JSON.stringify(scan2[k])) {
                             ok[k] = scan1[k];
                             usable++;
                             log(LOG_ERROR,'[' + k + '] ' + JSON.stringify(scan1[k]['diff']));
                         } else {
                             rem++;
-                        }
+                        }*/
                     }
                     document.getElementById("log").innerHTML = logconsole;
                     log(LOG_RESULT, rem + " propert" + (rem == 1 ? "y" : "ies") + " removed due to difference between scans");
